@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Reader - See You Latte</title>
+
+  <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-storage.js"></script>
+
+  <script src="js/core.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
+
+  <style>
+    /* --- AESTHETIC: The Midnight Writer Studio --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* CUSTOM SCROLLBAR (Crucial for luxury feel) */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+    
+    body {
+      font-family: 'Georgia', serif; /* UI Font */
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      /* Using the Chat Room background for consistency and focus */
+      background: url('https://i.imgur.com/gW01G9g.jpeg') no-repeat center center fixed;
+      background-size: cover;
+      color: #e0e0e0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Dark Overlay for readability */
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7); 
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* --- GLASS HEADER --- */
+    .reader-header {
+      height: 70px;
+      background: rgba(20, 20, 20, 0.8);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 30px;
+      position: relative;
+      z-index: 100;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .nav-group { display: flex; gap: 20px; align-items: center; }
+
+    .back-link {
+      color: #888; text-decoration: none; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; transition: color 0.3s;
+    }
+    .back-link:hover { color: #d4af37; }
+
+    /* Stylish Select Box */
+    .chapter-select {
+      background: rgba(255,255,255,0.1); 
+      color: #d4af37; 
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 8px 15px; 
+      font-family: 'Georgia', serif;
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+    }
+    .chapter-select option { background: #1a1a1a; color: #ccc; }
+
+    /* Action Buttons */
+    .action-btn {
+      background: #d4af37; color: #1a1a1a; border: 1px solid #d4af37;
+      padding: 8px 20px; font-weight: bold; cursor: pointer; 
+      font-family: 'Georgia', serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+      transition: all 0.3s;
+    }
+    .action-btn:hover { background: white; border-color: white; }
+    
+    .new-chap-btn {
+      background: transparent; color: #ccc; border: 1px solid #555;
+      padding: 8px 15px; font-size: 11px; cursor: pointer;
+      font-family: 'Georgia', serif; text-transform: uppercase; letter-spacing: 1px;
+      transition: all 0.3s;
+    }
+    .new-chap-btn:hover { border-color: #d4af37; color: #d4af37; }
+
+    /* --- WORKSPACE LAYOUT --- */
+    .workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* LEFT: The Editor (The Page) */
+    .editor-pane {
+      flex: 1; /* Takes up remaining space */
+      /* Looks like dark stationery paper */
+      background: rgba(30, 30, 30, 0.6); 
+      backdrop-filter: blur(5px);
+      padding: 60px 15%; /* Centered writing column */
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .chapter-title-input {
+      font-size: 36px;
+      font-weight: bold;
+      border: none;
+      background: transparent;
+      border-bottom: 1px solid transparent;
+      margin-bottom: 40px;
+      font-family: 'Merriweather', serif; /* Serif for Title */
+      outline: none;
+      color: #fff;
+      width: 100%;
+      padding-bottom: 10px;
+      transition: border 0.3s;
+    }
+    .chapter-title-input:focus { border-bottom-color: #d4af37; }
+    .chapter-title-input::placeholder { color: #555; }
+
+    .chapter-content-area {
+      flex: 1;
+      border: none;
+      background: transparent;
+      resize: none;
+      font-family: 'Merriweather', serif; /* The Writing Font */
+      font-size: 14px;
+      line-height: 2.0; /* Generous spacing for reading */
+      outline: none;
+      color: #e0e0e0;
+      min-height: 500px;
+    }
+    .chapter-content-area::placeholder { color: #555; font-style: italic; }
+
+    /* RIGHT: The Meta Sidebar (Glass Panel) */
+    .meta-pane {
+      width: 350px; /* Fixed width */
+      background: rgba(20, 20, 20, 0.8);
+      backdrop-filter: blur(10px);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 30px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .meta-section h4 {
+      color: #d4af37;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 15px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 5px;
+      font-weight: normal;
+    }
+
+    .meta-textarea {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #ccc;
+      padding: 15px;
+      resize: vertical;
+      min-height: 100px;
+      font-size: 14px;
+      line-height: 1.6;
+      font-family: 'Georgia', serif;
+      outline: none;
+      transition: border 0.3s;
+      border-radius: 4px;
+    }
+    .meta-textarea:focus { border-color: #d4af37; }
+
+    /* ELEMENTS LIST (The Tag Cloud) */
+    .elements-list { 
+      display: flex; 
+      flex-direction: row; /* Flow horizontally */
+      flex-wrap: wrap;     /* WRAP to next line if full */
+      gap: 8px;            /* Tight spacing */
+      margin-bottom: 15px;
+    }
+    
+    .element-item {
+      display: inline-flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      
+      /* The "Pill" Look */
+      background: rgba(255,255,255,0.05); 
+      padding: 6px 12px; 
+      border-radius: 20px; /* Rounded edges */
+      border: 1px solid rgba(255,255,255,0.1); /* Subtle border */
+      
+      transition: all 0.3s;
+      max-width: 100%; /* Prevents breaking if text is huge */
+    }
+    
+    .element-item:hover { 
+      background: rgba(255,255,255,0.1); 
+      border-color: #d4af37; /* Gold border on hover */
+    }
+    
+    .element-text { 
+      font-size: 11px; 
+      color: #ccc; 
+      
+      /* THE FIX: Allow text to wrap */
+      white-space: normal;      /* Was 'nowrap' */
+      word-wrap: break-word;    /* Breaks long words if needed */
+      line-height: 1.4;         /* comfortable reading height */
+      max-width: 100%;          /* Let it fill the pill */
+    }
+    
+    .element-delete {
+      color: #666; 
+      cursor: pointer; 
+      font-size: 14px; 
+      border: none; 
+      background: none; 
+      line-height: 1;
+      margin-left: 2px;
+      display: flex;
+      align-items: center;
+    }
+    .element-delete:hover { color: #ff6b6b; }
+
+    .add-element-row { display: flex; gap: 5px; margin-top: 10px; }
+    .add-input { 
+      flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); 
+      color: white; padding: 10px; outline: none; font-family: 'Georgia', serif;
+    }
+    .add-input:focus { border-color: #d4af37; }
+    
+    .add-btn { 
+      background: #444; color: white; border: none; padding: 0 15px; cursor: pointer; 
+      font-size: 18px; transition: background 0.3s;
+    }
+    .add-btn:hover { background: #d4af37; color: black; }
+
+    /* LOADING & STATUS */
+    #loadingOverlay {
+      position: fixed; inset: 0; background: #000; z-index: 2000;
+      display: flex; justify-content: center; align-items: center; color: #d4af37;
+      font-style: italic; letter-spacing: 2px;
+    }
+
+    #saveStatus {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888;
+      transition: color 0.3s;
+    }
+
+/* --- VIEW MODE (Theater) --- */
+    
+    /* 1. Hide the Tools */
+    body.view-mode .meta-pane,
+    body.view-mode .chapter-title-input,
+    body.view-mode .chapter-content-area {
+      display: none !important;
+    }
+
+    /* 2. Center the Stage */
+    body.view-mode .editor-pane {
+      max-width: 1200px; /* Increased from 800px to 1200px */
+      width: 90%;        /* Takes up most of the screen */
+      margin: 0 auto;    /* Centers it */
+      border-right: none;
+      background: transparent; 
+      padding: 80px 40px; /* Little more breathing room at the top */
+    }
+
+    /* 3. The Reader Display */
+    .reader-display {
+      display: none; /* Hidden normally */
+      animation: fadeIn 0.5s ease;
+    }
+
+    body.view-mode .reader-display {
+      display: block; /* Visible in view mode */
+    }
+
+    /* Typography for Reading */
+    #readerTitle {
+      font-family: 'Merriweather', serif;
+      font-size: 40px;
+      color: #d4af37;
+      text-align: center;
+      margin-bottom: 60px;
+      margin-top: 10x;
+      letter-spacing: 1px;
+    }
+
+    #readerBody {
+      font-family: 'Merriweather', serif;
+      font-size: 15px;       /* Slightly larger for reading comfort */
+      line-height: 2.0;      /* Double spacing */
+      color: #e0e0e0;
+      white-space: pre-wrap; /* Respects paragraphs */
+      text-align: justify;   /* Optional: Book-like alignment */
+    }
+    
+    /* First letter drop cap? Optional luxury touch */
+    #readerBody::first-letter {
+      font-size: 3.5em;
+      line-height: 0.8;
+      float: left;
+      margin-right: 10px;
+      color: #d4af37;
+      font-family: 'Georgia', serif;
+    }
+
+/* --- SYNOPSIS MODAL (Focus Mode) --- */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(5px);
+    }
+    .modal.active { display: flex; }
+
+    .modal-content {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      padding: 30px;
+      width: 800px;
+      max-width: 90vw;
+      height: auto;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+    }
+     
+
+      #synopsisModal .modal-content {
+      height: 80vh; /* Only this one gets to be tall */
+    }
+
+    .modal-content h3 {
+      color: #d4af37;
+      border-bottom: 1px solid #333;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: normal;
+    }
+
+    #expandedSynopsisInput {
+      flex: 1; /* Fills remaining height */
+      background: rgba(255,255,255,0.05);
+      border: 1px solid #444;
+      color: #e0e0e0;
+      padding: 20px;
+      font-family: 'Georgia', serif;
+      font-size: 16px;
+      line-height: 1.8; /* Comfortable reading spacing */
+      resize: none;
+      outline: none;
+      border-radius: 4px;
+    }
+    #expandedSynopsisInput:focus { border-color: #d4af37; }
+
+    .modal-buttons {
+      display: flex; justify-content: flex-end; gap: 15px; margin-top: 20px;
+    }
+    
+    .modal-btn {
+      padding: 10px 25px; cursor: pointer; border: none; 
+      font-family: 'Georgia', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 1px;
+    }
+    .modal-btn.cancel { background: transparent; border: 1px solid #444; color: #888; }
+    .modal-btn.cancel:hover { border-color: white; color: white; }
+    
+    .modal-btn.confirm { background: #d4af37; color: #1a1a1a; font-weight: bold; }
+    .modal-btn.confirm:hover { background: white; }
+
+
+/* --- TABLE OF CONTENTS (Slide-out Drawer) --- */
+    .toc-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .toc-overlay.active { opacity: 1; pointer-events: all; }
+
+    .toc-drawer {
+      position: fixed; left: 0; top: 0; bottom: 0;
+      width: 320px;
+      background: rgba(15, 15, 15, 0.95);
+      border-right: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      z-index: 2001;
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+    }
+    .toc-drawer.active { transform: translateX(0); }
+
+    .toc-header {
+      padding: 25px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .toc-header h3 {
+      font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: #d4af37; margin: 0;
+    }
+    .close-toc-btn {
+      background: none; border: none; color: #666; font-size: 20px; cursor: pointer;
+    }
+    .close-toc-btn:hover { color: white; }
+
+    .toc-list {
+      flex: 1; overflow-y: auto; padding: 20px 0;
+    }
+
+    .toc-item {
+      padding: 15px 25px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.2s;
+      font-family: 'Georgia', serif;
+      font-size: 14px;
+      color: #aaa;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    
+    .toc-item:hover { background: rgba(255,255,255,0.05); color: white; }
+    
+    .toc-item.active {
+      background: rgba(212, 175, 55, 0.1);
+      border-left-color: #d4af37;
+      color: #d4af37;
+      font-weight: bold;
+    }
+
+    .toc-word-count { font-size: 10px; color: #555; font-family: sans-serif; }
+
+
+  </style>
+</head>
+<body>
+
+  <div id="loadingOverlay">Opening book...</div>
+
+  <div class="reader-header">
+    <div class="nav-group">
+      <a href="See-You-Latte-Library.html" class="back-link">← Library</a>
+      
+      <button id="tocBtn" class="action-btn" style="background:transparent; border:1px solid #555; color:#ccc;">☰ Chapters</button>
+      
+      <button id="newChapBtn" class="new-chap-btn">+ New</button>
+    </div>
+
+    <div class="nav-group">
+
+     <span id="wordCountDisplay" style="color:#d4af37; font-size:11px; margin-right:15px; font-family:'Georgia',serif; letter-spacing:1px; min-width:60px; text-align:right;">0 WORDS</span>
+      <button id="viewModeBtn" class="action-btn" style="background:transparent; border:1px solid #666; color:#ccc;">Read Mode</button>
+      <button id="deleteStoryBtn" class="action-btn" style="background:transparent; border:1px solid #ff6b6b; color:#ff6b6b; margin-right:20px; font-size:10px;">Delete Story</button>
+      <span id="saveStatus" style="color:#666; font-size:12px; margin-right:10px;"></span>
+      <button id="saveBtn" class="action-btn">Save Progress</button>
+    </div>
+  </div>
+
+  <div class="workspace">
+    
+    <div class="editor-pane">
+      <input type="text" id="chapterTitle" class="chapter-title-input" placeholder="Chapter Title">
+      <textarea id="chapterContent" class="chapter-content-area" placeholder="Once upon a time..."></textarea>
+      
+      <div id="readerDisplay" class="reader-display">
+        <h1 id="readerTitle"></h1>
+        <div id="readerBody"></div>
+      </div>
+    </div>
+
+    <div class="meta-pane">
+      
+      <div class="meta-section">
+        <h4>Elevator Pitch</h4>
+        <textarea id="shortSummary" class="meta-textarea" placeholder="One sentence hook..."></textarea>
+      </div>
+
+      <div class="meta-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; padding-bottom: 5px;">
+          <h4 style="border:none; margin:0; padding:0;">Full Synopsis</h4>
+          <button id="expandSynopsisBtn" style="background:none; border:none; color:#d4af37; cursor:pointer; font-size:16px; line-height:1;" title="Expand View">⤢</button>
+        </div>
+        <textarea id="longSummary" class="meta-textarea" style="min-height: 150px;" placeholder="Detailed plot points..."></textarea>
+      </div>
+
+      <div class="meta-section">
+        <h4>Story Elements</h4>
+        <div class="elements-list" id="elementsList"></div>
+        
+        <div class="add-element-row">
+          <input type="text" id="newElementInput" class="add-input" placeholder="Character, place, item...">
+          <button id="addElementBtn" class="add-btn">+</button>
+        </div>
+      </div>
+
+    </div>
+
+<div class="modal" id="synopsisModal">
+    <div class="modal-content">
+      <h3>Full Synopsis</h3>
+      <textarea id="expandedSynopsisInput" placeholder="Write your masterpiece outline here..."></textarea>
+      <div class="modal-buttons">
+        <button class="modal-btn cancel" id="closeSynopsisBtn">Close (Discard)</button>
+        <button class="modal-btn confirm" id="updateSynopsisBtn">Update Sidebar</button>
+      </div>
+    </div>
+  </div>
+
+<div class="modal" id="deleteElementModal">
+    <div class="modal-content" style="max-width: 350px; border: 1px solid #ff6b6b;">
+      <h3 style="color: #ff6b6b; border-bottom-color: #ff6b6b;">Remove Element?</h3>
+      <p style="color: #ccc; margin-bottom: 25px; font-size: 14px; line-height: 1.5;">
+        Are you sure you want to delete this item?
+      </p>
+      <div class="modal-buttons">
+        <button class="modal-btn cancel" id="cancelDeleteElementBtn">Keep It</button>
+        <button class="modal-btn confirm" id="confirmDeleteElementBtn" style="background: #ff6b6b; color: white;">Remove</button>
+      </div>
+    </div>
+  </div>
+
+<div class="modal" id="deleteStoryModal">
+    <div class="modal-content" style="max-width: 400px; border: 1px solid #ff6b6b;">
+      <h3 style="color: #ff6b6b; border-bottom-color: #ff6b6b;">Delete Story?</h3>
+      <p style="color: #ccc; margin-bottom: 25px; font-size: 14px; line-height: 1.6;">
+        You are about to permanently delete <strong><span id="delStoryTitleDisplay">this story</span></strong>. 
+        <br><br>
+        This will erase all chapters, characters, and settings.
+        <span style="color: #ff6b6b;">This cannot be undone.</span>
+      </p>
+      <div class="modal-buttons">
+        <button class="modal-btn cancel" id="cancelDeleteStoryBtn">Keep It</button>
+        <button class="modal-btn confirm" id="confirmDeleteStoryBtn" style="background: #ff6b6b; border-color: #ff6b6b; color: white;">Delete Forever</button>
+      </div>
+    </div>
+  </div>
+
+<div class="toc-overlay" id="tocOverlay"></div>
+  <div class="toc-drawer" id="tocDrawer">
+    <div class="toc-header">
+      <h3>Contents</h3>
+      <button class="close-toc-btn" id="closeTocBtn">×</button>
+    </div>
+    <div class="toc-list" id="tocList">
+      </div>
+  </div>
+
+
+  <script>
+
+
+    // --- LOGIC ---
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const storyId = urlParams.get('story');
+    
+    if (!storyId) window.location.href = 'See-You-Latte-Library.html';
+
+    let storyData = null;
+    let currentChapterId = null;
+
+    // 1. Load Story
+    async function loadStory() {
+      try {
+        const snapshot = await db.ref('stories/' + storyId).once('value');
+        storyData = snapshot.val();
+        
+        if (!storyData) {
+          alert("Story not found.");
+          window.location.href = 'See-You-Latte-Library.html';
+          return;
+        }
+
+        // Setup TOC
+        renderTOC();
+
+        // Set initial chapter (first one) if none selected
+        if (!currentChapterId) {
+           const chapterIds = Object.keys(storyData.chapters || {}).sort();
+           if (chapterIds.length > 0) {
+             currentChapterId = chapterIds[0];
+             loadChapterUI(currentChapterId);
+             renderTOC(); // Re-render to show active state
+           }
+        }
+
+        document.getElementById('loadingOverlay').style.display = 'none';
+
+      } catch (e) {
+        console.error(e);
+        alert("Error loading story.");
+      }
+    }
+
+    // 2. Load Chapter into UI
+    function loadChapterUI(chapId) {
+      const chap = storyData.chapters[chapId];
+      if (!chap) return;
+
+      // Writing Area
+      document.getElementById('chapterTitle').value = chap.title || '';
+      document.getElementById('chapterContent').value = chap.content || '';
+
+      // Meta Area
+      const meta = chap.meta || {};
+      document.getElementById('shortSummary').value = meta.shortSummary || '';
+      document.getElementById('longSummary').value = meta.longSummary || '';
+
+      renderElements(meta.elements || []);
+      
+      // NEW: Update the count immediately
+      updateWordCount();
+    }
+
+    // 3. Render Elements List
+    function renderElements(elementsArray) {
+      const list = document.getElementById('elementsList');
+      list.innerHTML = '';
+      
+      elementsArray.forEach((el, index) => {
+        const div = document.createElement('div');
+        div.className = 'element-item';
+        div.innerHTML = `
+          <span class="element-text">${escapeHTML(el)}</span>
+          <button class="element-delete" onclick="removeElement(${index})">×</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    // --- SAFE DELETE LOGIC ---
+    
+    let elementToDeleteIndex = null; // Store which one we clicked
+
+    // 1. The Trigger (Replaces the old instant delete)
+    window.removeElement = (index) => {
+      elementToDeleteIndex = index;
+      document.getElementById('deleteElementModal').classList.add('active');
+    };
+
+    // 2. The Cancel
+    document.getElementById('cancelDeleteElementBtn').onclick = () => {
+      document.getElementById('deleteElementModal').classList.remove('active');
+      elementToDeleteIndex = null;
+    };
+
+    // 3. The Execution
+    document.getElementById('confirmDeleteElementBtn').onclick = () => {
+      if (elementToDeleteIndex === null) return;
+
+      // Get current data
+      const chap = storyData.chapters[currentChapterId];
+      if (!chap.meta.elements) chap.meta.elements = [];
+      
+      // Perform the deletion
+      chap.meta.elements.splice(elementToDeleteIndex, 1);
+      
+      // Update UI
+      renderElements(chap.meta.elements);
+      
+      // Close Modal & Reset
+      document.getElementById('deleteElementModal').classList.remove('active');
+      elementToDeleteIndex = null;
+      
+      // Optional: Auto-save? 
+      // saveCurrentState();
+    };
+
+    document.getElementById('addElementBtn').onclick = () => {
+      const input = document.getElementById('newElementInput');
+      const val = input.value.trim();
+      if (!val) return;
+      
+      const chap = storyData.chapters[currentChapterId];
+      if (!chap.meta) chap.meta = {};
+      if (!chap.meta.elements) chap.meta.elements = [];
+      
+      chap.meta.elements.push(val);
+      renderElements(chap.meta.elements);
+      input.value = '';
+    };
+
+    // 4. Save Logic
+    async function saveCurrentState() {
+      if (!currentChapterId) return;
+
+      const title = document.getElementById('chapterTitle').value;
+      const content = document.getElementById('chapterContent').value;
+      const short = document.getElementById('shortSummary').value;
+      const long = document.getElementById('longSummary').value;
+      
+      // Get current elements from state (they are updated in memory by add/remove)
+      const elements = storyData.chapters[currentChapterId].meta?.elements || [];
+
+      const updatedChapter = {
+        title: title,
+        content: content,
+        meta: {
+          shortSummary: short,
+          longSummary: long,
+          elements: elements
+        }
+      };
+
+      // Update Local Memory
+      storyData.chapters[currentChapterId] = updatedChapter;
+
+      // Update Firebase
+      document.getElementById('saveStatus').textContent = 'Saving...';
+      try {
+        await db.ref(`stories/${storyId}/chapters/${currentChapterId}`).set(updatedChapter);
+        document.getElementById('saveStatus').textContent = 'Saved ✔';
+        setTimeout(() => document.getElementById('saveStatus').textContent = '', 2000);
+      } catch (e) {
+        document.getElementById('saveStatus').textContent = 'Error saving!';
+        console.error(e);
+      }
+    }
+
+    document.getElementById('saveBtn').onclick = saveCurrentState;
+    
+    // Auto-save on Ctrl+S
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveCurrentState();
+      }
+    });
+
+    // 5. Create New Chapter
+    document.getElementById('newChapBtn').onclick = async () => {
+      const name = prompt("Name of new chapter?");
+      if (!name) return;
+      
+      const newChapId = 'chap_' + Date.now();
+      const newChapData = {
+        title: name,
+        content: '',
+        meta: { shortSummary: '', longSummary: '', elements: [] }
+      };
+
+      try {
+        await db.ref(`stories/${storyId}/chapters/${newChapId}`).set(newChapData);
+        // Refresh
+        loadStory(); 
+      } catch (e) { console.error(e); }
+    };
+
+// --- VIEW MODE TOGGLE ---
+    const viewBtn = document.getElementById('viewModeBtn');
+    let isViewMode = false;
+
+    viewBtn.onclick = () => {
+      isViewMode = !isViewMode;
+      
+      if (isViewMode) {
+        // ENTER READ MODE
+        document.body.classList.add('view-mode');
+        viewBtn.textContent = "✎ Edit Mode";
+        viewBtn.style.borderColor = "#d4af37";
+        viewBtn.style.color = "#d4af37";
+        
+        // Sync Data to Reader Display
+        document.getElementById('readerTitle').textContent = document.getElementById('chapterTitle').value;
+        
+        // Simple text formatting (preserves paragraphs)
+        // If you want Markdown later, we can use the parser from core.js
+        const rawText = document.getElementById('chapterContent').value;
+        document.getElementById('readerBody').innerHTML = (typeof parseMarkdown === 'function') ? parseMarkdown(rawText) : rawText;
+        
+      } else {
+        // EXIT READ MODE
+        document.body.classList.remove('view-mode');
+        viewBtn.textContent = "👁️ Read Mode";
+        viewBtn.style.borderColor = "#666";
+        viewBtn.style.color = "#ccc";
+      }
+    };
+
+// --- SYNOPSIS EXPANSION LOGIC ---
+    
+    // 1. Open the Big Window
+    document.getElementById('expandSynopsisBtn').onclick = () => {
+      // Copy text from Sidebar -> Modal
+      const currentText = document.getElementById('longSummary').value;
+      document.getElementById('expandedSynopsisInput').value = currentText;
+      
+      document.getElementById('synopsisModal').classList.add('active');
+    };
+
+    // 2. Close without saving
+    document.getElementById('closeSynopsisBtn').onclick = () => {
+      document.getElementById('synopsisModal').classList.remove('active');
+    };
+
+    // 3. Update and Close
+    document.getElementById('updateSynopsisBtn').onclick = () => {
+      // Copy text from Modal -> Sidebar
+      const newText = document.getElementById('expandedSynopsisInput').value;
+      document.getElementById('longSummary').value = newText;
+      
+      // Close Modal
+      document.getElementById('synopsisModal').classList.remove('active');
+      
+      // Optional: Auto-trigger a save of the whole chapter?
+      // saveCurrentState(); 
+    };
+
+// --- WORD COUNT ENGINE ---
+    
+    function updateWordCount() {
+      const text = document.getElementById('chapterContent').value || "";
+      // Split by whitespace and filter out empty strings to get accurate count
+      const count = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+      
+      document.getElementById('wordCountDisplay').textContent = `${count} WORDS`;
+    }
+
+    // 1. Listen for typing
+    document.getElementById('chapterContent').addEventListener('input', updateWordCount);
+
+// --- DELETE STORY LOGIC ---
+    
+    // 1. Trigger Modal
+    document.getElementById('deleteStoryBtn').onclick = () => {
+      // Display current title in the warning
+      const currentTitle = document.getElementById('chapterTitle').value || storyData.title || "this story";
+      document.getElementById('delStoryTitleDisplay').textContent = storyData.title; // Use the saved title
+      
+      document.getElementById('deleteStoryModal').classList.add('active');
+    };
+
+    // 2. Cancel
+    document.getElementById('cancelDeleteStoryBtn').onclick = () => {
+      document.getElementById('deleteStoryModal').classList.remove('active');
+    };
+
+    // 3. Confirm Nuke
+    document.getElementById('confirmDeleteStoryBtn').onclick = async () => {
+      try {
+        const btn = document.getElementById('confirmDeleteStoryBtn');
+        btn.textContent = "Deleting...";
+        
+        // Remove from Firebase
+        await db.ref('stories/' + storyId).remove();
+        
+        // Redirect to Library
+        window.location.href = 'See-You-Latte-Library.html';
+      } catch (e) {
+        console.error(e);
+        alert("Error deleting story.");
+        document.getElementById('deleteStoryModal').classList.remove('active');
+      }
+    };
+
+// --- TABLE OF CONTENTS LOGIC ---
+    
+    function renderTOC() {
+      const list = document.getElementById('tocList');
+      list.innerHTML = '';
+      
+      const chapters = storyData.chapters || {};
+      const chapterIds = Object.keys(chapters).sort();
+
+      chapterIds.forEach(chapId => {
+        const chap = chapters[chapId];
+        const isActive = (chapId === currentChapterId) ? 'active' : '';
+        
+        // Calculate rough word count for the meta info
+        const wc = (chap.content || "").split(/\s+/).filter(w => w.length > 0).length;
+        
+        const item = document.createElement('div');
+        item.className = `toc-item ${isActive}`;
+        item.innerHTML = `
+          <span>${escapeHTML(chap.title || 'Untitled')}</span>
+          <span class="toc-word-count">${wc} words</span>
+        `;
+        
+        item.onclick = () => {
+          saveCurrentState(); // Save before switching!
+          currentChapterId = chapId;
+          loadChapterUI(chapId);
+          
+          // Close drawer
+          document.getElementById('tocDrawer').classList.remove('active');
+          document.getElementById('tocOverlay').classList.remove('active');
+          
+          // Re-render TOC to update active highlight
+          renderTOC();
+        };
+        
+        list.appendChild(item);
+      });
+    }
+
+    // Toggle Drawer
+    document.getElementById('tocBtn').onclick = () => {
+      // Refresh list before opening to ensure titles are up to date
+      renderTOC();
+      document.getElementById('tocDrawer').classList.add('active');
+      document.getElementById('tocOverlay').classList.add('active');
+    };
+
+    // Close Actions
+    function closeTOC() {
+      document.getElementById('tocDrawer').classList.remove('active');
+      document.getElementById('tocOverlay').classList.remove('active');
+    }
+    document.getElementById('closeTocBtn').onclick = closeTOC;
+    document.getElementById('tocOverlay').onclick = closeTOC;
+
+
+    // INIT
+    loadStory();
+
+  </script>
+</body>
+</html>

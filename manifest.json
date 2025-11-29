@@ -1,0 +1,21 @@
+{
+  "name": "See You Latte",
+  "short_name": "Latte",
+  "start_url": "./See-You-Latte.html",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://i.imgur.com/LrIt4GQ.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://i.imgur.com/LrIt4GQ.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

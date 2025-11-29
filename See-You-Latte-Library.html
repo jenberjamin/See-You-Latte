@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Archives - See You Latte</title>
+
+  <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-storage.js"></script>
+
+  <script src="js/core.js"></script>
+
+ <style>
+    /* --- AESTHETIC: The Dark Library (Kindle/Wattpad Vibe) --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Georgia', serif;
+      height: 100vh;
+      background: url('https://i.imgur.com/JXSMMNC.gif') no-repeat center center fixed;
+      background-size: cover;
+      color: #e0e0e0;
+      overflow-y: auto; /* Allow scrolling for many books */
+      position: relative;
+    }
+
+    /* Dark Overlay for readability */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55); /* Darker than chat for focus on covers */
+      z-index: -1;
+    }
+
+    /* GLASS HEADER (Consistent with Chat) */
+    .library-header {
+      background: rgba(20, 20, 20, 0.8);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .header-title {
+      font-size: 20px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .back-btn {
+      color: #888;
+      text-decoration: none;
+      font-size: 12px;
+      letter-spacing: 1px;
+      transition: color 0.3s;
+      text-transform: uppercase;
+    }
+    .back-btn:hover { color: #d4af37; }
+
+    .add-story-btn {
+      background: transparent;
+      color: #d4af37;
+      padding: 8px 20px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      font-family: 'Georgia', serif;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: all 0.3s;
+    }
+    .add-story-btn:hover { 
+      background: #d4af37; 
+      color: #000; 
+      border-color: #d4af37;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+    }
+
+    /* BOOKSHELF GRID */
+    .bookshelf {
+      display: grid;
+      /* Responsive Grid: Cards adjust size automatically */
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
+      gap: 40px;
+      padding: 50px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+/* THE BOOK CARD (Physical Style) */
+    .book-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px; /* Space between cover and title */
+      cursor: pointer;
+      width: 100%;
+    }
+
+    /* 1. The Cover Itself */
+    .book-cover {
+      width: 100%;
+      aspect-ratio: 2 / 3;
+      background-color: #2a2a2a;
+      background-size: cover;
+      background-position: center;
+      border-radius: 4px 6px 6px 4px;
+      box-shadow: -2px 0 5px rgba(255,255,255,0.05) inset, 5px 5px 15px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    .book-card:hover .book-cover {
+      transform: translateY(-8px);
+      box-shadow: -2px 0 5px rgba(255,255,255,0.1) inset, 10px 20px 30px rgba(0,0,0,0.6);
+    }
+
+    /* 2. The Title (Now Below) */
+    .book-title-row {
+      text-align: center;
+      font-size: 15px;
+      font-weight: bold;
+      color: #e0e0e0;
+      line-height: 1.4;
+      padding: 0 5px;
+      transition: color 0.3s;
+    }
+    .book-card:hover .book-title-row { color: #d4af37; } /* Gold on hover */
+
+/* DRAG & DROP STATES */
+    .book-card[draggable="true"] {
+      cursor: grab; /* Shows the open hand */
+    }
+    .book-card.dragging {
+      opacity: 0.4;
+      border: 2px dashed #d4af37; /* Gold dash when moving */
+      transform: scale(0.95);
+    }
+    .book-card.drag-over {
+      transform: scale(1.05); /* Slight pop when hovering over a target */
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+    }
+
+    /* 3. The Hover Blurb (The "Back of the Book") */
+    .book-blurb-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(20, 20, 20, 0.95); /* Nearly opaque dark cover */
+      padding: 20px;
+      display: flex;
+      align-items: center; /* Center text vertically */
+      justify-content: center;
+      text-align: center;
+      opacity: 0; /* Hidden by default */
+      transition: opacity 0.3s ease;
+      
+      /* Typography */
+      font-size: 13px;
+      line-height: 1.6;
+      font-style: italic;
+      color: #ccc;
+    }
+
+    .book-card:hover .book-blurb-overlay {
+      opacity: 1; /* Show on hover */
+    }
+
+    /* Fallback if no cover image */
+    .book-card.no-image .book-cover {
+      background: linear-gradient(135deg, #2c3e50, #1a1a1a);
+      border: 1px solid #444;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    /* If no image, show a faint title inside too so it's not blank */
+    .book-card.no-image .book-cover::after {
+      content: 'No Cover';
+      color: rgba(255,255,255,0.1);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    /* --- MODAL (Reusing the Luxury Dark Theme) --- */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+    .modal.active { display: flex; }
+
+    .modal-content {
+      background: #1a1a1a;
+      padding: 40px;
+      border: 1px solid #333;
+      border-radius: 2px;
+      width: 450px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+      text-align: center;
+    }
+    
+    .modal-content h3 { 
+      color: #d4af37; 
+      margin-bottom: 30px; 
+      text-transform: uppercase; 
+      letter-spacing: 2px; 
+      font-weight: normal; 
+      font-size: 16px; 
+      border-bottom: 1px solid #333;
+      padding-bottom: 15px;
+    }
+
+    .modal-content input {
+      width: 100%; padding: 15px; background: rgba(255,255,255,0.05);
+      border: 1px solid #444; color: white; margin-bottom: 20px;
+      font-family: 'Georgia', serif; outline: none; transition: border 0.3s;
+    }
+    .modal-content input:focus { border-color: #d4af37; }
+
+    .modal-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 10px; }
+    .modal-btn { padding: 12px 30px; cursor: pointer; border: none; font-family: 'Georgia', serif; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; transition: all 0.3s; }
+    .modal-btn.confirm { background: #d4af37; color: #1a1a1a; font-weight: bold; }
+    .modal-btn.confirm:hover { background: white; }
+    .modal-btn.cancel { background: transparent; border: 1px solid #444; color: #888; }
+    .modal-btn.cancel:hover { border-color: white; color: white; }
+
+  </style>
+</head>
+<body>
+
+  <div class="library-header">
+    <div class="header-title">
+      <a href="See-You-Latte.html" class="back-btn">← Home</a>
+      <span>The Library</span>
+    </div>
+    <button class="add-story-btn" id="addStoryBtn">+ New Story</button>
+  </div>
+
+  <div class="bookshelf" id="bookshelf">
+    <div style="color: #666; font-style: italic;">Loading library...</div>
+  </div>
+
+  <div class="modal" id="createModal">
+    <div class="modal-content">
+      <h3>Create New Story</h3>
+      <input type="text" id="titleInput" placeholder="Story Title">
+      <input type="text" id="coverInput" placeholder="Cover Image URL (Optional)">
+      
+      <input type="text" id="synopsisInput" placeholder="Short Story Description">
+      
+      <div class="modal-buttons">
+        <button class="modal-btn cancel" id="cancelBtn">Cancel</button>
+        <button class="modal-btn confirm" id="confirmBtn">Create Book</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- LOGIC ---
+
+    // 1. Load Library (Fixed Sorting)
+    async function loadLibrary() {
+      const shelf = document.getElementById('bookshelf');
+      try {
+        const snapshot = await db.ref('stories').once('value');
+        const stories = snapshot.val() || {};
+        
+        let storyArray = Object.keys(stories).map(key => ({
+          id: key,
+          ...stories[key]
+        }));
+
+        if (storyArray.length === 0) {
+          shelf.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#666; padding: 40px;">No stories archived yet.</div>';
+          return;
+        }
+
+        // --- THE FIX IS HERE ---
+        // We explicitly check if order is undefined, so '0' is treated as a real number
+        storyArray.sort((a, b) => {
+          const orderA = (a.order !== undefined) ? a.order : 9999;
+          const orderB = (b.order !== undefined) ? b.order : 9999;
+          return orderA - orderB;
+        });
+
+        // Render HTML
+        shelf.innerHTML = storyArray.map(s => {
+          const hasImage = !!s.coverImage;
+          const bgStyle = hasImage ? `background-image: url('${s.coverImage}')` : '';
+          const noImgClass = hasImage ? '' : 'no-image';
+          const blurb = s.synopsis || "No description available.";
+          
+          return `
+            <div class="book-card ${noImgClass}" 
+                 draggable="true" 
+                 data-id="${s.id}" 
+                 onclick="openReader('${s.id}')">
+              <div class="book-cover" style="${bgStyle}">
+                <div class="book-blurb-overlay">"${escapeHTML(blurb)}"</div>
+              </div>
+              <div class="book-title-row">${escapeHTML(s.title)}</div>
+            </div>
+          `;
+        }).join('');
+
+        enableDragAndDrop();
+
+      } catch (e) {
+        console.error("Error loading library:", e);
+        shelf.innerHTML = 'Error loading archives.';
+      }
+    }
+
+    // --- DRAG & DROP ENGINE ---
+    function enableDragAndDrop() {
+      const cards = document.querySelectorAll('.book-card');
+      const shelf = document.getElementById('bookshelf');
+      let draggedItem = null;
+
+      cards.forEach(card => {
+        // A. Pick Up
+        card.addEventListener('dragstart', (e) => {
+          draggedItem = card;
+          setTimeout(() => card.classList.add('dragging'), 0);
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        // B. Dragging Finished (Clean up)
+        card.addEventListener('dragend', () => {
+          draggedItem = null;
+          card.classList.remove('dragging');
+          document.querySelectorAll('.book-card').forEach(c => c.classList.remove('drag-over'));
+          saveNewOrder(); // <--- Save to DB
+        });
+
+        // C. Hovering over others
+        card.addEventListener('dragenter', (e) => {
+          e.preventDefault();
+          if (card !== draggedItem) card.classList.add('drag-over');
+        });
+
+        card.addEventListener('dragleave', () => {
+          card.classList.remove('drag-over');
+        });
+      });
+
+      // D. The Shuffle Logic
+      shelf.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(shelf, e.clientY, e.clientX);
+        if (draggedItem) {
+          if (afterElement == null) {
+            shelf.appendChild(draggedItem);
+          } else {
+            shelf.insertBefore(draggedItem, afterElement);
+          }
+        }
+      });
+    }
+
+    // Helper: Finds insertion point
+    function getDragAfterElement(container, y, x) {
+      const draggableElements = [...container.querySelectorAll('.book-card:not(.dragging)')];
+
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offsetX = x - box.left - box.width / 2;
+        const offsetY = y - box.top - box.height / 2;
+        
+        if (offsetX < 0 && offsetY < 0 && offsetX > closest.offset && offsetY > closest.offset) {
+          return { offset: offsetX + offsetY, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // --- SAVE ORDER TO FIREBASE ---
+    async function saveNewOrder() {
+      const cards = document.querySelectorAll('.book-card');
+      const updates = {};
+      cards.forEach((card, index) => {
+        const id = card.getAttribute('data-id');
+        updates[`stories/${id}/order`] = index;
+      });
+      await db.ref().update(updates);
+    }
+
+    // 2. Navigation
+    window.openReader = (id) => {
+      window.location.href = `See-You-Latte-Reader.html?story=${id}`;
+    };
+
+    // 3. Create Story Logic
+    document.getElementById('addStoryBtn').onclick = () => document.getElementById('createModal').classList.add('active');
+    document.getElementById('cancelBtn').onclick = () => document.getElementById('createModal').classList.remove('active');
+
+    document.getElementById('confirmBtn').onclick = async () => {
+      const title = document.getElementById('titleInput').value.trim();
+      const cover = document.getElementById('coverInput').value.trim();
+      const synopsis = document.getElementById('synopsisInput').value.trim(); // <--- Capture Blurb
+      
+      if (!title) return alert("Every story needs a title.");
+
+      const id = 'story_' + Date.now();
+      const newStory = {
+        id: id,
+        title: title,
+        coverImage: cover,
+        synopsis: synopsis, // <--- Save Blurb
+        created: Date.now(),
+        chapters: {
+          'chap_01': {
+            title: 'Chapter 1',
+            content: 'Start writing...',
+            meta: { elements: [] }
+          }
+        }
+      };
+
+      try {
+        await db.ref('stories/' + id).set(newStory);
+        document.getElementById('createModal').classList.remove('active');
+        
+        // Clear all inputs
+        document.getElementById('titleInput').value = '';
+        document.getElementById('coverInput').value = '';
+        document.getElementById('synopsisInput').value = '';
+        
+        loadLibrary(); 
+      } catch (e) {
+        console.error(e);
+        alert("Could not create story.");
+      }
+    };
+
+    // Load on start
+    loadLibrary();
+
+  </script>
+</body>
+</html>
