@@ -260,8 +260,30 @@
     .modal-btn.confirm { background: #d4af37; color: #1a1a1a; font-weight: bold; }
     .modal-btn.confirm:hover { background: white; }
 
+  <style>
+    /* ... all your CSS code is up here ... */
+    /* ... */
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
   </style>
-</head>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a1a1a">
+  <link rel="apple-touch-icon" href="https://i.imgur.com/LrIt4GQ.png">
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('Service Worker registered! ✅', reg))
+          .catch(err => console.log('Service Worker failed ❌', err));
+      });
+    }
+  </script>
+  </head>
 <body>
 
   <a href="See-You-Latte.html" class="back-btn">← Back</a>
@@ -422,4 +444,5 @@
     }
   </script>
 </body>
+
 </html>
