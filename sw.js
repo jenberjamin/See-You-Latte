@@ -1,4 +1,4 @@
-const CACHE_NAME = 'latte-v1';
+const CACHE_NAME = 'latte-v2';
 const ASSETS_TO_CACHE = [
   './',
   './See-You-Latte.html',
@@ -40,4 +40,5 @@ self.addEventListener('fetch', (event) => {
       return response || fetch(event.request);
     })
   );
+
 });
